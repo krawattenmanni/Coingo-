@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Monopoly Go!</title>
+<style>
+:root{
+  --gold:#FFD700;--red:#E74C3C;--green:#27AE60;--blue:#2980B9;
+  --purple:#8E44AD;--orange:#E67E22;--bg:#1a1205;--card:#2a1f0a;
+  --border:#8B6914;--text:#fff;--dim:#aaa;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+body{background:var(--bg);color:var(--text);font-family:'Georgia',serif;min-height:100vh;overflow-x:hidden;}
+
+/* HEADER */
+#hdr{background:linear-gradient(135deg,#2a1500,#4a2800,#2a1500);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:100;box-shadow:0 4px 20px #00000088;}
+#logo{font-size:22px;font-weight:900;color:var(--gold);text-shadow:0 0 20px #ffd70066;letter-spacing:1px;}
+#logo span{color:#E74C3C;}
+.stat-box{text-align:center;}
+.stat-val{font-size:16px;font-weight:700;color:var(--gold);}
+.stat-lbl{font-size:10px;color:var(--dim);letter-spacing:1px;}
+
+/* EVENT BANNER */
+#evt-banner{background:linear-gradient(90deg,#8B0000,#cc0000,#8B0000);padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:2px solid #ff444466;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.8}}
+#evt-timer{margin-left:auto;font-size:12px;font-weight:700;color:#ffaaaa;}
+
+/* TABS */
+#tabs{display:flex;background:#1a1205;border-bottom:2px solid var(--border);}
+.tab{flex:1;padding:10px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--dim);cursor:pointer;border-bottom:3px solid transparent;transition:all 0.2s;}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold);}
+
+.pg{display:none;padding:10px 12px 80px;}
+.pg.on{display:block;}
+
+/* BOARD */
+#board-wrap{position:relative;margin-bottom:14px;}
+#board{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;background:var(--border);border:3px solid var(--gold);border-radius:8px;overflow:hidden;margin-bottom:10px;}
+.cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;background:var(--card);position:relative;transition:transform 0.1s;}
+.cell.corner{background:#2a0a00;}
+.cell.active{background:#3a2800;box-shadow:inset 0 0 8px var(--gold);}
+.cell.player{animation:playerPulse 0.5s infinite alternate;}
+@keyframes playerPulse{0%{background:#3a2800}100%{background:#5a3800}}
+.cell-icon{font-size:16px;line-height:1;}
+.cell-name{font-size:6px;color:var(--dim);text-align:center;line-height:1.1;margin-top:1px;}
+.token{position:absolute;top:2px;right:2px;font-size:10px;}
+
+/* PLAYER POS INDICATOR */
+#pos-bar{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+#pos-icon{font-size:32px;}
+#pos-info{flex:1;}
+#pos-name{font-size:14px;font-weight:700;color:var(--gold);}
+#pos-desc{font-size:11px;color:var(--dim);margin-top:2px;}
+
+/* DICE */
+#dice-area{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+.die{width:60px;height:60px;background:linear-gradient(135deg,#fff,#e0e0e0);border-radius:12px;border:3px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 4px 12px #00000066;transition:transform 0.1s;}
+.die.rolling{animation:rollDie 0.08s linear infinite;}
+@keyframes rollDie{0%{transform:rotate(0deg) scale(1.1)}100%{transform:rotate(360deg) scale(0.9)}}
+#roll-btn{flex:1;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--gold),#ff8c00);color:#000;font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px #ffd70055;letter-spacing:1px;}
+#roll-btn:disabled{background:#333;color:#666;box-shadow:none;}
+
+/* MSG */
+#msg{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:10px 14px;text-align:center;font-size:13px;font-weight:600;color:var(--gold);min-height:40px;margin-bottom:10px;}
+
+/* PROPERTIES */
+#props-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.prop-card{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:10px;text-align:center;}
+.prop-card.owned{border-color:var(--green);}
+.prop-icon{font-size:28px;}
+.prop-name{font-size:11px;font-weight:700;margin:4px 0 2px;}
+.prop-lvl{display:flex;gap:3px;justify-content:center;margin:4px 0;}
+.pip{width:12px;height:12px;border-radius:3px;background:#333;border:1px solid #555;}
+.pip.on{background:var(--gold);}
+.prop-rent{font-size:10px;color:var(--dim);margin-bottom:6px;}
+.prop-btn{width:100%;padding:6px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--gold),#ff8c00);color:#000;font-weight:700;font-size:11px;cursor:pointer;}
+.prop-btn:disabled{background:#333;color:#555;}
+
+/* EVENTS */
+.evt-card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;}
+.evt-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.evt-icon{font-size:32px;}
+.evt-title{font-size:15px;font-weight:700;color:var(--gold);}
+.evt-sub{font-size:11px;color:var(--dim);}
+.evt-progress{background:#333;border-radius:10px;height:8px;margin:8px 0;}
+.evt-bar{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--gold),#ff8c00);transition:width 0.5s;}
+.evt-rewards{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.reward-chip{background:#333;border-radius:20px;padding:4px 10px;font-size:11px;border:1px solid var(--border);}
+.reward-chip.done{background:var(--green);border-color:var(--green);}
+.evt-btn{width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--red),#8B0000);color:#fff;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px;}
+
+/* SHOP */
+.shop-section{margin-bottom:14px;}
+.shop-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.shop-item{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px;}
+.shop-left{display:flex;align-items:center;gap:10px;}
+.shop-icon{font-size:28px;}
+.shop-name{font-size:13px;font-weight:700;}
+.shop-price{font-size:11px;color:var(--dim);}
+.shop-btn{padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--gold),#ff8c00);color:#000;font-weight:900;cursor:pointer;font-size:12px;}
+
+/* LEADERBOARD */
+.lb-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px;}
+.lb-rank{font-size:20px;width:30px;text-align:center;}
+.lb-info{flex:1;}
+.lb-name{font-size:13px;font-weight:700;}
+.lb-score{font-size:11px;color:var(--dim);}
+.lb-you{border-color:var(--gold);background:#2a1f0a;}
+
+/* POPUP */
+#popup{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000000cc;z-index:200;align-items:center;justify-content:center;}
+#popup.on{display:flex;}
+#pbox{background:linear-gradient(135deg,#2a1500,#3a2000);border:3px solid var(--gold);border-radius:20px;padding:24px;text-align:center;width:88%;max-width:340px;}
+#p-icon{font-size:56px;margin-bottom:8px;}
+#p-title{font-size:22px;font-weight:900;color:var(--gold);margin-bottom:6px;}
+#p-sub{font-size:14px;color:var(--dim);margin-bottom:16px;line-height:1.4;}
+#p-content{margin-bottom:16px;}
+#p-btn{padding:14px 32px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--gold),#ff8c00);color:#000;font-weight:900;font-size:16px;cursor:pointer;width:100%;}
+#p-btn2{padding:10px 24px;border-radius:12px;border:2px solid var(--border);background:transparent;color:var(--dim);font-size:13px;cursor:pointer;width:100%;margin-top:8px;}
+
+/* MINI MAP */
+#mini-map{display:grid;grid-template-columns:repeat(9,1fr);gap:1px;margin-bottom:10px;}
+.mm-cell{height:8px;background:#333;border-radius:1px;}
+.mm-cell.p{background:var(--gold);}
+.mm-cell.owned{background:var(--green);}
+
+/* DAILY */
+.daily-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px;}
+.day-box{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:8px 4px;text-align:center;}
+.day-box.done{border-color:var(--green);background:#0a2a0a;}
+.day-box.today{border-color:var(--gold);animation:pulse 1.5s infinite;}
+.day-num{font-size:9px;color:var(--dim);margin-bottom:4px;}
+.day-reward{font-size:18px;}
+.day-claim{font-size:9px;color:var(--green);margin-top:2px;}
+
+/* DICE COUNT */
+#dice-count{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+
+/* STICKER */
+.sticker-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px;}
+.sticker{background:var(--card);border:2px solid var(--border);border-radius:10px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.sticker.got{border-color:var(--gold);}
+.sticker.missing{filter:grayscale(1);opacity:0.4;}
+
+@keyframes coinPop{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80px) scale(0.5);opacity:0}}
+.coin-pop{position:fixed;pointer-events:none;font-size:22px;animation:coinPop 1s ease-out forwards;z-index:999;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div>
+    <div class="stat-val" id="coins-disp">🪙 1.000</div>
+    <div class="stat-lbl">MÜNZEN</div>
+  </div>
+  <div id="logo">MONO<span>GO!</span></div>
+  <div>
+    <div class="stat-val" id="dice-disp">🎲 30</div>
+    <div class="stat-lbl">WÜRFEL</div>
+  </div>
+</div>
+
+<!-- EVENT BANNER -->
+<div id="evt-banner">
+  <span style="font-size:18px">🔥</span>
+  <div>
+    <div style="font-size:12px;font-weight:700;color:#fff">GOLDEN BLITZ EVENT</div>
+    <div style="font-size:10px;color:#ffaaaa">3x Münzen auf allem!</div>
+  </div>
+  <div id="evt-timer">⏱ 02:34:17</div>
+</div>
+
+<!-- TABS -->
+<div id="tabs">
+  <div class="tab on" onclick="showTab('board')">🎲 Spielfeld</div>
+  <div class="tab" onclick="showTab('props')">🏠 Besitz</div>
+  <div class="tab" onclick="showTab('events')">🔥 Events</div>
+  <div class="tab" onclick="showTab('shop')">🛒 Shop</div>
+  <div class="tab" onclick="showTab('more')">⭐ Mehr</div>
+</div>
+
+<!-- BOARD PAGE -->
+<div id="pg-board" class="pg on">
+  <div id="msg">Würfle und bereise das Spielfeld!</div>
+
+  <!-- Mini progress map -->
+  <div id="mini-map"></div>
+
+  <!-- Dice count bar -->
+  <div id="dice-count">
+    <span style="font-size:22px">🎲</span>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700" id="dc-num">30 Würfel übrig</div>
+      <div style="background:#333;border-radius:6px;height:5px;margin-top:3px"><div id="dc-bar" style="background:linear-gradient(90deg,var(--gold),#ff8c00);height:100%;border-radius:6px;width:30%;transition:width 0.3s"></div></div>
+    </div>
+    <span style="font-size:11px;color:var(--dim)">Max: 100</span>
+  </div>
+
+  <!-- Dice -->
+  <div id="dice-area">
+    <div class="die" id="die1">⚀</div>
+    <div class="die" id="die2">⚀</div>
+    <button id="roll-btn" onclick="rollDice()">🎲 WÜRFELN</button>
+  </div>
+
+  <!-- Current position -->
+  <div id="pos-bar">
+    <div id="pos-icon">🚂</div>
+    <div id="pos-info">
+      <div id="pos-name">START</div>
+      <div id="pos-desc">Sammle 200 Münzen beim Passieren!</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;color:var(--dim)">Feld</div>
+      <div style="font-size:18px;font-weight:700;color:var(--gold)" id="pos-num">0</div>
+    </div>
+  </div>
+
+  <!-- Board grid -->
+  <div id="board"></div>
+
+  <!-- Stats row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px;">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;">
+      <div style="font-size:18px">🏆</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="stat-rank">#1</div>
+      <div style="font-size:9px;color:var(--dim)">RANG</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;">
+      <div style="font-size:18px">🏠</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="stat-props">0</div>
+      <div style="font-size:9px;color:var(--dim)">BESITZ</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;">
+      <div style="font-size:18px">🎯</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="stat-rolls">0</div>
+      <div style="font-size:9px;color:var(--dim)">WÜRFE</div>
+    </div>
+  </div>
+</div>
+
+<!-- PROPERTIES PAGE -->
+<div id="pg-props" class="pg">
+  <div style="font-size:13px;color:var(--dim);margin-bottom:10px;text-align:center">Kaufe und verbessere Grundstücke für Mieteinnahmen!</div>
+  <div id="props-grid"></div>
+</div>
+
+<!-- EVENTS PAGE -->
+<div id="pg-events" class="pg">
+
+  <!-- Daily Login -->
+  <div class="evt-card">
+    <div class="evt-header">
+      <div class="evt-icon">🗓️</div>
+      <div><div class="evt-title">Tägliche Belohnung</div><div class="evt-sub">Jeden Tag einloggen</div></div>
+    </div>
+    <div class="daily-grid" id="daily-grid"></div>
+    <button class="evt-btn" style="background:linear-gradient(135deg,var(--green),#1a5c1a)" onclick="claimDaily()">✅ Heute abholen</button>
+  </div>
+
+  <!-- Golden Blitz -->
+  <div class="evt-card">
+    <div class="evt-header">
+      <div class="evt-icon">⚡</div>
+      <div><div class="evt-title">Golden Blitz</div><div class="evt-sub">3x Münzen – Noch 2h 34m!</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:8px">Würfle jetzt für dreifache Belohnungen auf allen Feldern!</div>
+    <div class="evt-progress"><div class="evt-bar" id="blitz-bar" style="width:45%"></div></div>
+    <div style="font-size:11px;color:var(--dim);margin:4px 0">45 / 100 Würfe</div>
+    <div class="evt-rewards">
+      <div class="reward-chip done">25 Würfe: 🎲+10 ✅</div>
+      <div class="reward-chip" id="blitz-r2">50 Würfe: 🪙500</div>
+      <div class="reward-chip" id="blitz-r3">75 Würfe: 💎1</div>
+      <div class="reward-chip" id="blitz-r4">100 Würfe: 🎲+50</div>
+    </div>
+  </div>
+
+  <!-- Sticker Album -->
+  <div class="evt-card">
+    <div class="evt-header">
+      <div class="evt-icon">📚</div>
+      <div><div class="evt-title">Sticker Album</div><div class="evt-sub">Sammle alle 20 Sticker!</div></div>
+    </div>
+    <div class="sticker-grid" id="sticker-grid"></div>
+    <div style="font-size:11px;color:var(--dim);text-align:center" id="sticker-count">0/20 gesammelt</div>
+    <button class="evt-btn" onclick="openPack()">🎁 Sticker-Pack öffnen (🪙 200)</button>
+  </div>
+
+  <!-- Tournament -->
+  <div class="evt-card">
+    <div class="evt-header">
+      <div class="evt-icon">🏆</div>
+      <div><div class="evt-title">Wochenturnier</div><div class="evt-sub">Top 10 gewinnen Mega-Preise!</div></div>
+    </div>
+    <div id="tournament-lb"></div>
+    <div style="font-size:11px;color:var(--dim);text-align:center;margin-top:8px">Endet in: 3 Tage 14 Stunden</div>
+  </div>
+
+</div>
+
+<!-- SHOP PAGE -->
+<div id="pg-shop" class="pg">
+  <div class="shop-section">
+    <div class="shop-title">⚡ ANGEBOTE</div>
+    <div class="shop-item" style="border-color:#ff4444;background:#2a0a0a;">
+      <div class="shop-left">
+        <div class="shop-icon">🔥</div>
+        <div><div class="shop-name">Starter-Paket</div><div class="shop-price">100 Würfel + 5.000 Münzen</div></div>
+      </div>
+      <button class="shop-btn" onclick="buyPack(100,5000,0)">GRATIS</button>
+    </div>
+  </div>
+  <div class="shop-section">
+    <div class="shop-title">🎲 WÜRFEL</div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">🎲</div><div><div class="shop-name">10 Würfel</div><div class="shop-price">🪙 300 Münzen</div></div></div>
+      <button class="shop-btn" onclick="buyDice(10,300)">KAUFEN</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">🎲🎲</div><div><div class="shop-name">50 Würfel</div><div class="shop-price">🪙 1.200 Münzen</div></div></div>
+      <button class="shop-btn" onclick="buyDice(50,1200)">KAUFEN</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">💫</div><div><div class="shop-name">150 Würfel</div><div class="shop-price">🪙 3.000 Münzen</div></div></div>
+      <button class="shop-btn" onclick="buyDice(150,3000)">KAUFEN</button>
+    </div>
+  </div>
+  <div class="shop-section">
+    <div class="shop-title">🪙 MÜNZEN</div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">💰</div><div><div class="shop-name">5.000 Münzen</div><div class="shop-price">🎲 10 Würfel</div></div></div>
+      <button class="shop-btn" onclick="buyCoins(5000,10)">KAUFEN</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">💎</div><div><div class="shop-name">20.000 Münzen</div><div class="shop-price">🎲 35 Würfel</div></div></div>
+      <button class="shop-btn" onclick="buyCoins(20000,35)">KAUFEN</button>
+    </div>
+  </div>
+  <div class="shop-section">
+    <div class="shop-title">🛡️ SCHUTZ</div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">🛡️</div><div><div class="shop-name">Bankschutz</div><div class="shop-price">Schützt 50% deiner Münzen</div></div></div>
+      <button class="shop-btn" onclick="buyShield()">🪙 500</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-left"><div class="shop-icon">🔒</div><div><div class="shop-name">Vollschutz</div><div class="shop-price">24h kompletter Schutz</div></div></div>
+      <button class="shop-btn" onclick="buyFullShield()">🪙 1.500</button>
+    </div>
+  </div>
+</div>
+
+<!-- MORE PAGE -->
+<div id="pg-more" class="pg">
+  <!-- Level progress -->
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <div style="font-size:40px">👑</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--gold)">Level <span id="lvl-num">1</span></div>
+        <div style="font-size:11px;color:var(--dim)">XP: <span id="xp-num">0</span> / <span id="xp-max">100</span></div>
+        <div style="background:#333;border-radius:6px;height:8px;margin-top:4px"><div id="xp-bar" style="background:linear-gradient(90deg,#8E44AD,#3498DB);height:100%;border-radius:6px;width:0%;transition:width 0.5s"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;">🏆 Rangliste</div>
+  <div id="lb-list"></div>
+
+  <!-- Achievements -->
+  <div style="font-size:14px;font-weight:700;color:var(--gold);margin:12px 0 8px;">🎖️ Errungenschaften</div>
+  <div id="achievements"></div>
+
+  <!-- Free dice timer -->
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:14px;padding:14px;text-align:center;margin-top:10px;">
+    <div style="font-size:28px;margin-bottom:6px">⏱️</div>
+    <div style="font-weight:700;margin-bottom:4px">Gratis Würfel</div>
+    <div style="font-size:12px;color:var(--dim)">Alle 60 Sekunden +3 Würfel automatisch</div>
+    <div style="font-size:11px;color:var(--green);margin-top:6px" id="free-timer">Nächste in: 60s</div>
+  </div>
+</div>
+
+<!-- POPUP -->
+<div id="popup">
+  <div id="pbox">
+    <div id="p-icon"></div>
+    <div id="p-title"></div>
+    <div id="p-sub"></div>
+    <div id="p-content"></div>
+    <button id="p-btn" onclick="closePopup()">OK!</button>
+    <button id="p-btn2" style="display:none" onclick="closePopup()">Schließen</button>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+var G = {
+  coins: 1000, dice: 30, pos: 0, level: 1, xp: 0,
+  totalRolls: 0, shields: 0, fullShield: false,
+  properties: [0,0,0,0,0,0,0,0], // upgrade levels
+  ownedProps: [],
+  stickers: [],
+  dailyDay: 0, dailyClaimed: false,
+  blitzRolls: 45, blitzEvent: true,
+  tournamentScore: 0,
+  starterClaimed: false,
+  freeTimer: 60,
+};
+
+// ============ BOARD DATA ============
+var CELLS = [
+  {icon:"🚂",name:"START",type:"start",reward:200},
+  {icon:"🏙️",name:"Berlin",type:"prop",cost:120,rent:30,color:"#E74C3C"},
+  {icon:"⚡",name:"Energie",type:"utility",reward:80},
+  {icon:"🏖️",name:"Hamburg",type:"prop",cost:140,rent:35,color:"#E74C3C"},
+  {icon:"💰",name:"Steuer",type:"tax",cost:100},
+  {icon:"🚂",name:"Bhf.1",type:"station",cost:200,rent:50},
+  {icon:"🌆",name:"München",type:"prop",cost:180,rent:45,color:"#E67E22"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🏛️",name:"Köln",type:"prop",cost:180,rent:45,color:"#E67E22"},
+  {icon:"🌉",name:"Frankfurt",type:"prop",cost:200,rent:50,color:"#E67E22"},
+  {icon:"🔒",name:"Gefängnis",type:"jail"},
+  {icon:"🌸",name:"Stuttgart",type:"prop",cost:220,rent:55,color:"#27AE60"},
+  {icon:"💡",name:"Wasser",type:"utility",reward:100},
+  {icon:"🌳",name:"Düsseldorf",type:"prop",cost:220,rent:55,color:"#27AE60"},
+  {icon:"🌇",name:"Dortmund",type:"prop",cost:240,rent:60,color:"#27AE60"},
+  {icon:"🚂",name:"Bhf.2",type:"station",cost:200,rent:50},
+  {icon:"🏰",name:"Essen",type:"prop",cost:260,rent:65,color:"#2980B9"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🗼",name:"Bremen",type:"prop",cost:260,rent:65,color:"#2980B9"},
+  {icon:"🌊",name:"Dresden",type:"prop",cost:280,rent:70,color:"#2980B9"},
+  {icon:"🅿️",name:"Parken",type:"free"},
+  {icon:"🏯",name:"Leipzig",type:"prop",cost:300,rent:75,color:"#8E44AD"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🏟️",name:"Hannover",type:"prop",cost:300,rent:75,color:"#8E44AD"},
+  {icon:"🎭",name:"Nürnberg",type:"prop",cost:320,rent:80,color:"#8E44AD"},
+  {icon:"🚂",name:"Bhf.3",type:"station",cost:200,rent:50},
+  {icon:"🌺",name:"Duisburg",type:"prop",cost:350,rent:90,color:"#E74C3C"},
+  {icon:"💸",name:"Steuer",type:"tax",cost:150},
+  {icon:"🗺️",name:"Bochum",type:"prop",cost:350,rent:90,color:"#E74C3C"},
+  {icon:"💎",name:"Wuppertal",type:"prop",cost:400,rent:100,color:"#E74C3C"},
+  {icon:"🚓",name:"Zur Haft",type:"gotojail"},
+  {icon:"🌟",name:"Bonn",type:"prop",cost:420,rent:110,color:"#E67E22"},
+  {icon:"🏆",name:"Mannheim",type:"prop",cost:420,rent:110,color:"#E67E22"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🌈",name:"Augsburg",type:"prop",cost:440,rent:120,color:"#E67E22"},
+  {icon:"🚂",name:"Bhf.4",type:"station",cost:200,rent:50},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"👑",name:"Wiesbaden",type:"prop",cost:500,rent:140,color:"#E74C3C"},
+  {icon:"💸",name:"Luxussteuer",type:"tax",cost:200},
+  {icon:"🏅",name:"Hamburg",type:"prop",cost:600,rent:180,color:"#E74C3C"},
+  {icon:"🎯",name:"Bonus",type:"bonus",reward:500},
+  {icon:"🎪",name:"Bielefeld",type:"prop",cost:220,rent:55,color:"#27AE60"},
+  {icon:"🌠",name:"Wunder",type:"luck"},
+  {icon:"🏄",name:"Münster",type:"prop",cost:240,rent:60,color:"#27AE60"},
+  {icon:"🎨",name:"Krefeld",type:"prop",cost:260,rent:65,color:"#2980B9"},
+  {icon:"🚀",name:"Bhf.5",type:"station",cost:200,rent:50},
+  {icon:"🦁",name:"Halle",type:"prop",cost:280,rent:70,color:"#2980B9"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🦅",name:"Freiburg",type:"prop",cost:300,rent:80,color:"#8E44AD"},
+  {icon:"🌍",name:"Mainz",type:"prop",cost:320,rent:90,color:"#8E44AD"},
+  {icon:"🎠",name:"Lübeck",type:"prop",cost:340,rent:95,color:"#8E44AD"},
+  {icon:"⚔️",name:"Angriff",type:"attack"},
+  {icon:"🛡️",name:"Schutz",type:"shield"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🌮",name:"Erfurt",type:"prop",cost:360,rent:100,color:"#E67E22"},
+  {icon:"🚂",name:"Bhf.6",type:"station",cost:200,rent:50},
+  {icon:"🦋",name:"Rostock",type:"prop",cost:380,rent:110,color:"#E67E22"},
+  {icon:"🎁",name:"Glück",type:"luck"},
+  {icon:"🦊",name:"Potsdam",type:"prop",cost:400,rent:120,color:"#E74C3C"},
+  {icon:"🌙",name:"Magdeburg",type:"prop",cost:420,rent:130,color:"#E74C3C"},
+  {icon:"🎲",name:"Jackpot",type:"jackpot"},
+  {icon:"🏆",name:"ZIEL",type:"goal",reward:2000},
+];
+var BOARD_SIZE = 36; // use first 36 for display
+
+var LUCK_MSGS = [
+  {msg:"💰 Glück! +300 Münzen!",coins:300},
+  {msg:"🎲 +5 Gratis-Würfel!",dice:5},
+  {msg:"🛡️ Schutzschild aktiviert!",shield:1},
+  {msg:"💸 Zahle 200 Münzen Strafe!"  ,coins:-200},
+  {msg:"⚡ Gehe zu START! +200 Münzen",goto:0,coins:200},
+  {msg:"🎁 +500 Münzen Bonus!",coins:500},
+  {msg:"🎲 +10 Würfel gewonnen!",dice:10},
+  {msg:"💰 Mieteinnahmen! +400 Münzen",coins:400},
+  {msg:"🃏 Doppelwürfel! Noch eine Runde!",extraRoll:true},
+  {msg:"👑 Jackpot! +1000 Münzen!!!",coins:1000},
+];
+
+var ENEMIES = ["Björn der Wikinger 🪓","Piratin Rosa 🏴‍☠️","Ritter Max ⚔️","Zauberin Luna 🔮","König Thorin 👑","Lady Vera 🌹","Drachenjäger 🐉","Ninja Kenji 🥷"];
+var STICKER_ICONS = ["🦁","🐯","🦊","🐺","🦅","🦋","🐉","🦄","🌟","💎","⚡","🔥","🌈","🏆","👑","🎯","🚀","🌙","⭐","💫"];
+
+var LB_FAKE = [
+  {name:"Viking_Björn",score:48200,icon:"🪓"},
+  {name:"PiratenRosa",score:42100,icon:"🏴‍☠️"},
+  {name:"DragonSlayer",score:38900,icon:"🐉"},
+  {name:"GoldQueen",score:35200,icon:"👑"},
+  {name:"NinjaKenji",score:29800,icon:"🥷"},
+];
+
+var ACHIEVEMENTS_DEF = [
+  {name:"Erste Runde",desc:"Einmal um das Spielfeld",icon:"🎯",req:1,type:"rounds",done:false},
+  {name:"Millionär",desc:"1.000 Münzen gesammelt",icon:"💰",req:1000,type:"coins_total",done:false},
+  {name:"Würfelmeister",desc:"100 Mal gewürfelt",icon:"🎲",req:100,type:"rolls",done:false},
+  {name:"Immobilienhai",desc:"5 Grundstücke besitzen",icon:"🏠",req:5,type:"props",done:false},
+  {name:"Unbesiegbar",desc:"3 Schilde aktiviert",icon:"🛡️",req:3,type:"shields",done:false},
+  {name:"Glückspilz",desc:"10x Glücksfeld gelandet",icon:"🍀",req:10,type:"luck",done:false},
+];
+var achStats = {rounds:0,coins_total:0,rolls:0,props:0,shields:0,luck:0};
+
+var DAILY_REWARDS = ["🎲+3","🪙200","🎲+5","🪙500","💎1","🎲+10","👑MEGA"];
+var dailyClaimed = [false,false,false,false,false,false,false];
+var extraRoll = false;
+var freeTimerCount = 60;
+var evtSeconds = 9257;
+
+// ============ INIT ============
+function init(){
+  buildBoard();
+  buildMiniMap();
+  buildProps();
+  buildStickers();
+  buildLeaderboard();
+  buildAchievements();
+  buildDaily();
+  buildTournament();
+  updateUI();
+  startTimers();
+}
+
+function buildBoard(){
+  var b = document.getElementById('board');
+  b.innerHTML='';
+  for(var i=0;i<BOARD_SIZE;i++){
+    var c=CELLS[i%CELLS.length];
+    var div=document.createElement('div');
+    div.className='cell'+(c.type==='start'||c.type==='jail'||c.type==='free'||c.type==='gotojail'?' corner':'');
+    div.id='cell'+i;
+    div.innerHTML='<div class="cell-icon">'+c.icon+'</div><div class="cell-name">'+c.name+'</div>';
+    if(G.ownedProps.indexOf(i)>=0) div.innerHTML+='<div class="token">🏠</div>';
+    b.appendChild(div);
+  }
+  highlightCell();
+}
+
+function buildMiniMap(){
+  var m=document.getElementById('mini-map');
+  m.innerHTML='';
+  for(var i=0;i<BOARD_SIZE;i++){
+    var d=document.createElement('div');
+    d.className='mm-cell'+(i===G.pos?' p':(G.ownedProps.indexOf(i)>=0?' owned':''));
+    m.appendChild(d);
+  }
+}
+
+function highlightCell(){
+  document.querySelectorAll('.cell').forEach(function(c){c.classList.remove('player')});
+  var el=document.getElementById('cell'+G.pos);
+  if(el)el.classList.add('player');
+  buildMiniMap();
+  var c=CELLS[G.pos%CELLS.length];
+  document.getElementById('pos-icon').textContent=c.icon;
+  document.getElementById('pos-name').textContent=c.name;
+  document.getElementById('pos-num').textContent=G.pos;
+  var desc='';
+  if(c.type==='prop') desc='Grundstück · Kosten: 🪙'+c.cost;
+  else if(c.type==='start') desc='Sammle 🪙200 beim Passieren!';
+  else if(c.type==='luck') desc='Glücksfeld – irgendetwas passiert!';
+  else if(c.type==='tax') desc='Zahle Steuer: 🪙'+c.cost;
+  else if(c.type==='jail') desc='Nur zu Besuch – kein Problem!';
+  else if(c.type==='station') desc='Bahnhof · Kosten: 🪙'+c.cost;
+  else if(c.type==='attack') desc='Greife einen Spieler an!';
+  else if(c.type==='bonus') desc='Bonus-Feld! +🪙500';
+  else if(c.type==='jackpot') desc='JACKPOT FELD!';
+  else if(c.type==='goal') desc='ZIEL! +🪙2000!';
+  else desc='Spezielles Feld';
+  document.getElementById('pos-desc').textContent=desc;
+}
+
+function buildProps(){
+  var g=document.getElementById('props-grid');
+  g.innerHTML='';
+  var propCells=[];
+  for(var i=0;i<CELLS.length;i++){if(CELLS[i].type==='prop'||CELLS[i].type==='station')propCells.push({idx:i,cell:CELLS[i]});}
+  propCells.slice(0,16).forEach(function(p){
+    var owned=G.ownedProps.indexOf(p.idx)>=0;
+    var lvl=owned?(G.properties[propCells.indexOf(p)]||0):0;
+    var stars='';
+    for(var j=0;j<4;j++) stars+='<div class="pip'+(j<lvl?' on':'')+'"></div>';
+    var rent=p.cell.rent?(p.cell.rent*(lvl+1)):50;
+    var d=document.createElement('div');
+    d.className='prop-card'+(owned?' owned':'');
+    d.innerHTML='<div class="prop-icon">'+p.cell.icon+'</div><div class="prop-name">'+p.cell.name+'</div><div class="prop-lvl">'+stars+'</div><div class="prop-rent">Miete: 🪙'+rent+'</div>';
+    if(owned&&lvl<4){
+      d.innerHTML+='<button class="prop-btn" onclick="upgradeProp('+p.idx+','+propCells.indexOf(p)+')">⬆️ Ausbauen 🪙'+(p.cell.cost*2)+'</button>';
+    } else if(!owned){
+      d.innerHTML+='<button class="prop-btn" '+(G.coins<p.cell.cost?'disabled':'')+' onclick="buyProp('+p.idx+','+propCells.indexOf(p)+')">🛒 Kaufen 🪙'+p.cell.cost+'</button>';
+    } else {
+      d.innerHTML+='<div style="color:var(--green);font-size:11px;font-weight:700">✅ Voll ausgebaut</div>';
+    }
+    g.appendChild(d);
+  });
+}
+
+function buildStickers(){
+  var g=document.getElementById('sticker-grid');
+  g.innerHTML='';
+  var count=0;
+  for(var i=0;i<20;i++){
+    var got=G.stickers.indexOf(i)>=0;
+    if(got)count++;
+    var d=document.createElement('div');
+    d.className='sticker'+(got?' got':' missing');
+    d.textContent=STICKER_ICONS[i];
+    g.appendChild(d);
+  }
+  document.getElementById('sticker-count').textContent=count+'/20 gesammelt';
+}
+
+function buildLeaderboard(){
+  var me={name:"Du 🎮",score:G.tournamentScore,icon:"👤",you:true};
+  var all=[me].concat(LB_FAKE);
+  all.sort(function(a,b){return b.score-a.score});
+  var h='';
+  var medals=["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣"];
+  all.forEach(function(p,i){
+    h+='<div class="lb-item'+(p.you?' lb-you':'')+'"><div class="lb-rank">'+(medals[i]||i+1)+'</div><div class="lb-info"><div class="lb-name">'+p.icon+' '+p.name+'</div><div class="lb-score">'+p.score.toLocaleString()+' Punkte</div></div>'+(p.you?'<div style="font-size:11px;color:var(--gold)">DU!</div>':'')+'</div>';
+  });
+  var el=document.getElementById('lb-list');
+  if(el)el.innerHTML=h;
+}
+
+function buildAchievements(){
+  var h='';
+  ACHIEVEMENTS_DEF.forEach(function(a){
+    var prog=Math.min(achStats[a.type],a.req);
+    var pct=prog/a.req*100;
+    h+='<div style="background:var(--card);border:2px solid '+(a.done?'var(--green)':'var(--border)')+';border-radius:12px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">';
+    h+='<div style="font-size:28px">'+a.icon+'</div>';
+    h+='<div style="flex:1"><div style="font-size:13px;font-weight:700">'+a.name+'</div><div style="font-size:11px;color:var(--dim)">'+a.desc+'</div><div style="background:#333;border-radius:4px;height:5px;margin-top:4px"><div style="background:linear-gradient(90deg,var(--gold),#ff8c00);width:'+pct+'%;height:100%;border-radius:4px;transition:width 0.5s"></div></div></div>';
+    h+='<div style="font-size:11px;color:var(--dim)">'+prog+'/'+a.req+'</div>';
+    h+='</div>';
+  });
+  var el=document.getElementById('achievements');
+  if(el)el.innerHTML=h;
+}
+
+function buildDaily(){
+  var g=document.getElementById('daily-grid');
+  g.innerHTML='';
+  DAILY_REWARDS.forEach(function(r,i){
+    var done=i<G.dailyDay;
+    var today=i===G.dailyDay;
+    var d=document.createElement('div');
+    d.className='day-box'+(done?' done':(today?' today':''));
+    d.innerHTML='<div class="day-num">Tag '+(i+1)+'</div><div class="day-reward">'+r+'</div>'+(done?'<div class="day-claim">✅</div>':'');
+    g.appendChild(d);
+  });
+}
+
+function buildTournament(){
+  var el=document.getElementById('tournament-lb');
+  if(!el)return;
+  var me={name:"Du",score:G.tournamentScore,icon:"👤",you:true};
+  var all=[me].concat(LB_FAKE.slice(0,4));
+  all.sort(function(a,b){return b.score-a.score});
+  var h='';
+  all.forEach(function(p,i){
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">';
+    h+='<span style="font-size:16px;width:24px">'+['🥇','🥈','🥉','4️⃣','5️⃣'][i]+'</span>';
+    h+='<span style="flex:1;font-size:12px;'+(p.you?'color:var(--gold);font-weight:700':'')+'">'+p.icon+' '+p.name+'</span>';
+    h+='<span style="font-size:12px;color:var(--dim)">'+p.score.toLocaleString()+'</span></div>';
+  });
+  el.innerHTML=h;
+}
+
+// ============ DICE ============
+function rollDice(){
+  if(G.dice<1){showPopup('😢','Keine Würfel!','Kaufe mehr im Shop oder warte auf Gratis-Würfel.','','OK');return;}
+  G.dice--;
+  G.totalRolls++;
+  achStats.rolls++;
+  G.tournamentScore+=50;
+  document.getElementById('roll-btn').disabled=true;
+
+  var d1=Math.ceil(Math.random()*6);
+  var d2=Math.ceil(Math.random()*6);
+  var dice=['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+  document.getElementById('die1').classList.add('rolling');
+  document.getElementById('die2').classList.add('rolling');
+
+  var tick=0;
+  var iv=setInterval(function(){
+    tick++;
+    document.getElementById('die1').textContent=dice[Math.floor(Math.random()*6)];
+    document.getElementById('die2').textContent=dice[Math.floor(Math.random()*6)];
+    if(tick>=15){
+      clearInterval(iv);
+      document.getElementById('die1').classList.remove('rolling');
+      document.getElementById('die2').classList.remove('rolling');
+      document.getElementById('die1').textContent=dice[d1-1];
+      document.getElementById('die2').textContent=dice[d2-1];
+      var total=d1+d2;
+      movePlayer(total);
+    }
+  },80);
+}
+
+function movePlayer(steps){
+  var oldPos=G.pos;
+  var newPos=(G.pos+steps)%BOARD_SIZE;
+  // passed start?
+  if(newPos<oldPos||steps>=BOARD_SIZE){
+    G.coins+=200;
+    achStats.rounds++;
+    spawnCoin('+200🪙 START!');
+  }
+  G.pos=newPos;
+  highlightCell();
+  setTimeout(function(){
+    landOnCell();
+  },400);
+}
+
+function landOnCell(){
+  var c=CELLS[G.pos%CELLS.length];
+  var mult=G.blitzEvent?3:1;
+
+  if(c.type==='start'){
+    G.coins+=200*mult; spawnCoin('+🪙'+(200*mult));
+    setMsg('🚂 START! +🪙'+(200*mult)+'!');
+
+  } else if(c.type==='prop'||c.type==='station'){
+    if(G.ownedProps.indexOf(G.pos)>=0){
+      var pidx=G.ownedProps.indexOf(G.pos);
+      var rent=Math.floor((c.rent||50)*(G.properties[G.pos]||1)*mult);
+      G.coins+=rent; spawnCoin('+🪙'+rent);
+      setMsg('🏠 Dein Grundstück! +🪙'+rent+' Miete!');
+    } else {
+      if(G.coins>=c.cost){
+        showPropPopup(G.pos,c);
+        return;
+      } else {
+        setMsg('🏙️ '+c.name+' · Zu teuer! Brauche 🪙'+c.cost);
+      }
+    }
+
+  } else if(c.type==='luck'){
+    achStats.luck++;
+    var l=LUCK_MSGS[Math.floor(Math.random()*LUCK_MSGS.length)];
+    if(l.coins){G.coins+=l.coins;if(l.coins>0)spawnCoin((l.coins>0?'+':'')+l.coins+'🪙');}
+    if(l.dice){G.dice+=l.dice;}
+    if(l.shield){G.shields++;achStats.shields++;}
+    if(l.goto!==undefined){G.pos=l.goto;highlightCell();}
+    if(l.extraRoll){extraRoll=true;}
+    setMsg(l.msg);
+    if(l.extraRoll) setTimeout(function(){document.getElementById('roll-btn').disabled=false;},1000);
+
+  } else if(c.type==='tax'){
+    if(G.fullShield){setMsg('🔒 Vollschutz! Steuer geblockt!');}
+    else if(G.shields>0){G.shields--;setMsg('🛡️ Schild schützt dich! Steuer geblockt!');}
+    else{var tax=c.cost||100;G.coins=Math.max(0,G.coins-tax);setMsg('💸 Steuer! -🪙'+tax);}
+
+  } else if(c.type==='attack'){
+    var enemy=ENEMIES[Math.floor(Math.random()*ENEMIES.length)];
+    var stolen=Math.floor(50+Math.random()*300);
+    G.coins+=stolen; spawnCoin('+🪙'+stolen);
+    G.tournamentScore+=100;
+    setMsg('⚔️ Angriff auf '+enemy+'! +🪙'+stolen+' gestohlen!');
+
+  } else if(c.type==='shield'){
+    G.shields=Math.min(G.shields+1,3);achStats.shields++;
+    setMsg('🛡️ Schutzschild erhalten! ('+G.shields+'/3)');
+
+  } else if(c.type==='bonus'){
+    var b=(c.reward||500)*mult; G.coins+=b; spawnCoin('+🪙'+b);
+    setMsg('🎯 BONUS FELD! +🪙'+b+'!');
+
+  } else if(c.type==='jackpot'){
+    var jp=Math.floor(500+Math.random()*2000)*mult;
+    G.coins+=jp; spawnCoin('+🪙'+jp+'!!!');
+    G.tournamentScore+=500;
+    showPopup('🎲','JACKPOT!','Du gewinnst 🪙'+jp+' Münzen!!!','','NICE!');
+    setMsg('🎲 JACKPOT! +🪙'+jp+'!!!');
+
+  } else if(c.type==='goal'){
+    var goal=(c.reward||2000)*mult; G.coins+=goal; spawnCoin('+🪙'+goal);
+    G.tournamentScore+=1000;
+    showPopup('🏆','ZIEL ERREICHT!','Unglaublich! +🪙'+goal+' Münzen!','','WEITER!');
+    setMsg('🏆 ZIEL! +🪙'+goal+'!');
+
+  } else if(c.type==='gotojail'){
+    G.pos=10; highlightCell();
+    setMsg('🚓 Ins Gefängnis! Gehe zu Feld 10!');
+
+  } else if(c.type==='free'){
+    setMsg('🅿️ Kostenloses Parken – entspann dich!');
+
+  } else if(c.type==='utility'){
+    var u=(c.reward||80)*mult; G.coins+=u; spawnCoin('+🪙'+u);
+    setMsg('⚡ Versorgungsbetrieb! +🪙'+u+'!');
+  }
+
+  // update blitz
+  if(G.blitzEvent){G.blitzRolls++;updateBlitz();}
+  achStats.coins_total=Math.max(achStats.coins_total,G.coins);
+  achStats.props=G.ownedProps.length;
+  addXP(15);
+  checkAchievements();
+  updateUI();
+  buildLeaderboard();
+  buildTournament();
+
+  if(!extraRoll){
+    setTimeout(function(){document.getElementById('roll-btn').disabled=false;},600);
+  }
+  extraRoll=false;
+}
+
+function showPropPopup(idx,c){
+  document.getElementById('p-icon').textContent=c.icon;
+  document.getElementById('p-title').textContent=c.name;
+  document.getElementById('p-sub').textContent='Kaufe dieses Grundstück für 🪙'+c.cost+'\nMiete: 🪙'+c.rent+' pro Besuch';
+  document.getElementById('p-content').innerHTML='<div style="font-size:13px;color:var(--dim)">Miete steigt mit jedem Ausbau!</div>';
+  document.getElementById('p-btn').textContent='🛒 Kaufen! 🪙'+c.cost;
+  document.getElementById('p-btn').onclick=function(){
+    G.coins-=c.cost;
+    G.ownedProps.push(idx);
+    achStats.props=G.ownedProps.length;
+    G.tournamentScore+=200;
+    spawnCoin('🏠 Gekauft!');
+    setMsg('🏠 '+c.name+' gehört dir!');
+    buildBoard(); buildProps(); updateUI(); checkAchievements();
+    closePopup();
+    setTimeout(function(){document.getElementById('roll-btn').disabled=false;},300);
+  };
+  document.getElementById('p-btn2').style.display='block';
+  document.getElementById('p-btn2').textContent='Überspringen';
+  document.getElementById('p-btn2').onclick=function(){
+    closePopup();
+    setMsg('⏭️ '+c.name+' übersprungen.');
+    setTimeout(function(){document.getElementById('roll-btn').disabled=false;},300);
+  };
+  document.getElementById('popup').classList.add('on');
+}
+
+function buyProp(idx,pidx){
+  var c=CELLS[idx];
+  if(G.coins<c.cost){setMsg('❌ Nicht genug Münzen!');return;}
+  G.coins-=c.cost; G.ownedProps.push(idx);
+  achStats.props=G.ownedProps.length;
+  G.tournamentScore+=200;
+  setMsg('🏠 '+c.name+' gekauft!');
+  buildBoard(); buildProps(); updateUI(); checkAchievements();
+}
+
+function upgradeProp(idx,pidx){
+  var c=CELLS[idx];
+  var cost=c.cost*2;
+  if(G.coins<cost){setMsg('❌ Nicht genug Münzen!');return;}
+  G.coins-=cost;
+  G.properties[pidx]=(G.properties[pidx]||0)+1;
+  G.tournamentScore+=150;
+  setMsg('⬆️ '+c.name+' ausgebaut!');
+  addXP(20);
+  buildProps(); updateUI();
+}
+
+// ============ EVENTS ============
+function claimDaily(){
+  if(G.dailyDay>=7){setMsg('✅ Alle Tagesbelohnungen erhalten!');return;}
+  var r=DAILY_REWARDS[G.dailyDay];
+  G.dailyDay++;
+  dailyClaimed[G.dailyDay-1]=true;
+  var msg='🎁 Tag '+G.dailyDay+' Belohnung: '+r;
+  if(r.includes('🎲')){var n=parseInt(r.replace(/\D/g,''));G.dice+=n;}
+  if(r.includes('🪙')){var n2=parseInt(r.replace(/\D/g,''));G.coins+=n2;spawnCoin('+🪙'+n2);}
+  addXP(25);
+  buildDaily(); updateUI();
+  setMsg(msg);
+  showPopup('🎁','Tagesbonus!',msg,'','Super!');
+}
+
+function openPack(){
+  if(G.coins<200){setMsg('❌ Nicht genug Münzen!');return;}
+  G.coins-=200;
+  var got=[];
+  for(var i=0;i<3;i++){
+    var idx=Math.floor(Math.random()*20);
+    if(G.stickers.indexOf(idx)<0){G.stickers.push(idx);got.push(STICKER_ICONS[idx]);}
+    else{got.push('💫 Duplikat');}
+  }
+  buildStickers(); updateUI();
+  showPopup('📚','Sticker-Pack!','Du hast bekommen:\n'+got.join(' · '),'','');
+}
+
+function updateBlitz(){
+  var pct=Math.min(G.blitzRolls/100*100,100);
+  var bar=document.getElementById('blitz-bar');
+  if(bar)bar.style.width=pct+'%';
+  if(G.blitzRolls>=50){var r=document.getElementById('blitz-r2');if(r&&!r.classList.contains('done')){r.classList.add('done');r.textContent='50 Würfe: 🪙500 ✅';G.coins+=500;spawnCoin('+🪙500 Event!');}}
+  if(G.blitzRolls>=75){var r3=document.getElementById('blitz-r3');if(r3&&!r3.classList.contains('done')){r3.classList.add('done');r3.textContent='75 Würfe: 💎1 ✅';G.dice+=5;}}
+  if(G.blitzRolls>=100){G.blitzEvent=false;var r4=document.getElementById('blitz-r4');if(r4&&!r4.classList.contains('done')){r4.classList.add('done');r4.textContent='100 Würfe: 🎲+50 ✅';G.dice+=50;showPopup('⚡','Event abgeschlossen!','+50 Würfel verdient! Nächstes Event startet bald!','','');}}
+}
+
+// ============ SHOP ============
+function buyPack(d,c,cost){
+  if(G.starterClaimed){setMsg('✅ Starter-Paket bereits geholt!');return;}
+  G.starterClaimed=true; G.dice+=d; G.coins+=c;
+  spawnCoin('+🪙'+c); updateUI();
+  showPopup('🔥','Starter-Paket!','+'+d+' Würfel und +🪙'+c+' Münzen erhalten!','','DANKE!');
+}
+function buyDice(amount,cost){
+  if(G.coins<cost){setMsg('❌ Nicht genug Münzen!');return;}
+  G.coins-=cost; G.dice+=amount; updateUI();
+  setMsg('✅ +'+amount+' Würfel!');
+}
+function buyCoins(amount,diceCost){
+  if(G.dice<diceCost){setMsg('❌ Nicht genug Würfel!');return;}
+  G.dice-=diceCost; G.coins+=amount; spawnCoin('+🪙'+amount); updateUI();
+  setMsg('✅ +🪙'+amount+' Münzen!');
+}
+function buyShield(){
+  if(G.coins<500){setMsg('❌ Nicht genug Münzen!');return;}
+  G.coins-=500; G.shields=Math.min(G.shields+1,3); updateUI();
+  setMsg('🛡️ Bankschutz aktiviert!');
+}
+function buyFullShield(){
+  if(G.coins<1500){setMsg('❌ Nicht genug Münzen!');return;}
+  G.coins-=1500; G.fullShield=true; updateUI();
+  setMsg('🔒 Vollschutz für 24h aktiv!');
+  setTimeout(function(){G.fullShield=false;setMsg('🔒 Vollschutz abgelaufen!');},86400000);
+}
+
+// ============ XP / LEVEL ============
+function addXP(n){
+  G.xp+=n;
+  var need=G.level*100;
+  if(G.xp>=need){G.level++;G.xp-=need;G.dice+=15;showPopup('👑','Level Up!','Level '+G.level+' erreicht!\n+15 Würfel Bonus!','','');setMsg('👑 Level '+G.level+'!');}
+  updateXPBar();
+}
+function updateXPBar(){
+  var need=G.level*100;
+  var pct=Math.min(G.xp/need*100,100);
+  var bar=document.getElementById('xp-bar');
+  if(bar)bar.style.width=pct+'%';
+  var ln=document.getElementById('lvl-num');if(ln)ln.textContent=G.level;
+  var xn=document.getElementById('xp-num');if(xn)xn.textContent=G.xp;
+  var xm=document.getElementById('xp-max');if(xm)xm.textContent=G.level*100;
+}
+
+function checkAchievements(){
+  ACHIEVEMENTS_DEF.forEach(function(a){
+    if(!a.done&&achStats[a.type]>=a.req){
+      a.done=true;
+      G.coins+=500; G.dice+=5;
+      showPopup('🎖️','Errungenschaft!',a.icon+' '+a.name+'\n'+a.desc+'\n\n+🪙500 +5🎲','','');
+    }
+  });
+  buildAchievements();
+}
+
+// ============ UI ============
+function setMsg(t){document.getElementById('msg').textContent=t;}
+
+function updateUI(){
+  document.getElementById('coins-disp').textContent='🪙 '+G.coins.toLocaleString();
+  document.getElementById('dice-disp').textContent='🎲 '+G.dice;
+  document.getElementById('dc-num').textContent=G.dice+' Würfel übrig';
+  document.getElementById('dc-bar').style.width=Math.min(G.dice,100)+'%';
+  document.getElementById('stat-rank').textContent='#'+(Math.max(1,6-Math.floor(G.tournamentScore/5000)));
+  document.getElementById('stat-props').textContent=G.ownedProps.length;
+  document.getElementById('stat-rolls').textContent=G.totalRolls;
+  updateXPBar();
+}
+
+function spawnCoin(txt){
+  var d=document.createElement('div');
+  d.className='coin-pop';
+  d.textContent=txt;
+  d.style.left=(30+Math.random()*40)+'%';
+  d.style.top='40%';
+  document.body.appendChild(d);
+  setTimeout(function(){d.remove();},1100);
+}
+
+function showPopup(icon,title,sub,content,btn){
+  document.getElementById('p-icon').textContent=icon;
+  document.getElementById('p-title').textContent=title;
+  document.getElementById('p-sub').textContent=sub;
+  document.getElementById('p-content').innerHTML=content;
+  document.getElementById('p-btn').textContent=btn||'OK!';
+  document.getElementById('p-btn').onclick=closePopup;
+  document.getElementById('p-btn2').style.display='none';
+  document.getElementById('popup').classList.add('on');
+}
+function closePopup(){document.getElementById('popup').classList.remove('on');}
+
+function showTab(t){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on')});
+  document.getElementById('pg-'+t).classList.add('on');
+  event.target.classList.add('on');
+  if(t==='props')buildProps();
+  if(t==='more'){buildLeaderboard();buildAchievements();}
+  if(t==='events'){buildStickers();buildTournament();}
+}
+
+// ============ TIMERS ============
+function startTimers(){
+  // Free dice every 60s
+  setInterval(function(){
+    G.dice+=3; updateUI();
+    setMsg('🎁 +3 Gratis-Würfel!');
+  },60000);
+
+  // Free timer countdown
+  setInterval(function(){
+    freeTimerCount--;
+    if(freeTimerCount<=0)freeTimerCount=60;
+    var el=document.getElementById('free-timer');
+    if(el)el.textContent='Nächste in: '+freeTimerCount+'s';
+  },1000);
+
+  // Event countdown
+  setInterval(function(){
+    evtSeconds--;
+    if(evtSeconds<0)evtSeconds=0;
+    var h=Math.floor(evtSeconds/3600);
+    var m=Math.floor((evtSeconds%3600)/60);
+    var s=evtSeconds%60;
+    var el=document.getElementById('evt-timer');
+    if(el)el.textContent='⏱ '+pad(h)+':'+pad(m)+':'+pad(s);
+  },1000);
+}
+function pad(n){return n<10?'0'+n:n;}
+
+init();
+</script>
+</body>
+</html>
