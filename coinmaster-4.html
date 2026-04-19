@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Coin Master</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:#0a0015; color:#fff; font-family:sans-serif; min-height:100vh; }
+
+#header { background:#1a0035; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #8b00ff55; position:sticky; top:0; z-index:10; }
+#coins-display { font-size:18px; font-weight:700; color:#ffd700; }
+#spins-display { font-size:13px; color:#bb86fc; }
+
+#village-bar { background:#2a0050aa; padding:8px 16px; font-size:13px; border-bottom:1px solid #ffffff22; }
+
+#msg { margin:12px 16px 4px; background:#ffffff11; border:1px solid #ffffff22; border-radius:12px; padding:10px 16px; text-align:center; font-size:14px; font-weight:600; color:#ffd700; min-height:42px; }
+
+#tabs { display:flex; gap:8px; margin:8px 16px; }
+.tab { flex:1; padding:8px 4px; border-radius:10px; border:2px solid #ffffff22; background:#ffffff11; color:#888; font-weight:700; font-size:12px; cursor:pointer; }
+.tab.active { border-color:#bb86fc; background:#3d007088; color:#fff; }
+
+.page { display:none; padding:0 16px 20px; }
+.page.active { display:block; }
+
+/* SLOT */
+#slot-machine { background:linear-gradient(160deg,#2a0050,#1a0035); border-radius:20px; border:3px solid #8b00ff; padding:20px 12px; margin-bottom:12px; }
+#reels { display:flex; justify-content:center; gap:10px; margin-bottom:20px; }
+.reel { width:80px; height:80px; background:#1a003588; border-radius:14px; border:2px solid #8b00ff; display:flex; align-items:center; justify-content:center; font-size:40px; transition:border-color 0.2s; }
+.reel.spin { border-color:#ffd700; animation:spinReel 0.1s linear infinite; }
+@keyframes spinReel { 0%{transform:scaleY(1)}50%{transform:scaleY(0.1)}100%{transform:scaleY(1)} }
+#spin-btn { width:100%; padding:16px; border-radius:14px; border:none; background:linear-gradient(135deg,#ffd700,#ff8c00); color:#000; font-size:20px; font-weight:900; cursor:pointer; letter-spacing:2px; }
+#spin-btn:disabled { background:#333; color:#666; }
+
+#legend { background:#ffffff08; border-radius:14px; border:1px solid #ffffff15; padding:12px; }
+#legend h3 { font-size:12px; color:#888; margin-bottom:8px; }
+#legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:12px; }
+
+/* ATTACK/RAID POPUP */
+#popup { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:#000000cc; z-index:50; align-items:center; justify-content:center; }
+#popup.show { display:flex; }
+#popup-box { background:#1a0035; border-radius:20px; border:2px solid #ffd700; padding:24px; text-align:center; width:85%; }
+#popup-title { font-size:40px; margin-bottom:8px; }
+#popup-sub { font-size:18px; font-weight:700; margin-bottom:4px; }
+#popup-name { font-size:16px; color:#ffd700; margin-bottom:16px; }
+#popup-btn { padding:12px 32px; border-radius:12px; border:none; background:linear-gradient(135deg,#ff4444,#cc0000); color:#fff; font-weight:900; font-size:16px; cursor:pointer; }
+#raid-tiles { display:flex; gap:10px; justify-content:center; }
+.tile { width:70px; height:70px; border-radius:12px; border:2px solid #ffd700; background:#3d3d00; font-size:22px; cursor:pointer; font-weight:700; color:#fff; }
+.tile:disabled { opacity:0.7; cursor:default; }
+
+/* VILLAGE */
+#village-header { background:linear-gradient(135deg,#2a004444,#1a002222); border-radius:16px; border:2px solid #8b00ff55; padding:16px; margin-bottom:12px; text-align:center; }
+#buildings { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.building { background:linear-gradient(135deg,#1a1a2e,#16213e); border-radius:14px; border:2px solid #ffffff22; padding:12px; text-align:center; }
+.building.done { border-color:#00ff88; background:linear-gradient(135deg,#003300,#005500); }
+.building-icon { font-size:32px; }
+.building-name { font-size:13px; font-weight:700; margin:4px 0; }
+.stars { display:flex; gap:3px; justify-content:center; margin:6px 0; }
+.star { width:14px; height:14px; border-radius:3px; background:#333; border:1px solid #555; }
+.star.on { background:#ffd700; }
+.buy-btn { width:100%; padding:6px 12px; border-radius:8px; border:none; background:linear-gradient(135deg,#ffd700,#ff8c00); color:#000; font-weight:700; font-size:12px; cursor:pointer; }
+.buy-btn:disabled { background:#333; color:#666; }
+#upgrade-btn { width:100%; padding:14px; border-radius:14px; border:none; background:#333; color:#666; font-weight:900; font-size:15px; cursor:pointer; }
+#upgrade-btn.ready { background:linear-gradient(135deg,#bb86fc,#7c4dff); color:#fff; }
+
+/* SHOP */
+.shop-item { display:flex; align-items:center; justify-content:space-between; background:#ffffff08; border-radius:14px; border:1px solid #ffffff15; padding:12px 16px; margin-bottom:10px; }
+.shop-buy { padding:8px 16px; border-radius:10px; border:none; background:linear-gradient(135deg,#ffd700,#ff8c00); color:#000; font-weight:900; cursor:pointer; }
+#free-spin-box { background:linear-gradient(135deg,#003344,#005566); border-radius:14px; border:1px solid #0099cc55; padding:16px; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div id="coins-display">🪙 500</div>
+    <div id="spins-display">🎰 50 Drehs</div>
+  </div>
+  <div style="text-align:center">
+    <div style="font-size:20px;font-weight:900;color:#ffd700">COIN MASTER</div>
+    <div id="level-display" style="font-size:11px;color:#bb86fc">LEVEL 1</div>
+  </div>
+  <div id="shields-display" style="font-size:20px;text-align:right"></div>
+</div>
+
+<div id="village-bar">🏘️ <span id="village-name">Steinzeit-Dorf</span> · Dorf <span id="village-num">1</span>/5</div>
+
+<div id="msg">Drehe das Rad und werde reich!</div>
+
+<div id="tabs">
+  <button class="tab active" onclick="showTab('spin')">🎰 Drehen</button>
+  <button class="tab" onclick="showTab('village')">🏘️ Dorf</button>
+  <button class="tab" onclick="showTab('shop')">🛒 Shop</button>
+</div>
+
+<!-- SPIN PAGE -->
+<div id="page-spin" class="page active">
+  <div id="slot-machine">
+    <div id="reels">
+      <div class="reel" id="r0">🪙</div>
+      <div class="reel" id="r1">🪙</div>
+      <div class="reel" id="r2">🪙</div>
+    </div>
+    <button id="spin-btn" onclick="spin()">🎰 DREHEN</button>
+  </div>
+
+  <div id="legend">
+    <h3>GEWINN-TABELLE (3x gleich)</h3>
+    <div id="legend-grid">
+      <span>🪙🪙🪙 → +500 Münzen</span>
+      <span>💎💎💎 → +1000 Münzen</span>
+      <span>🌟🌟🌟 → +2000 Münzen</span>
+      <span>🏆🏆🏆 → +5000 Münzen</span>
+      <span>⚔️⚔️⚔️ → Angriff!</span>
+      <span>🛡️🛡️🛡️ → Schild</span>
+      <span>💣💣💣 → Raid!</span>
+      <span>🔔🔔🔔 → +300 Münzen</span>
+    </div>
+  </div>
+</div>
+
+<!-- VILLAGE PAGE -->
+<div id="page-village" class="page">
+  <div id="village-header">
+    <div id="v-icon" style="font-size:48px">🏘️</div>
+    <div id="v-name" style="font-size:20px;font-weight:900;margin-top:4px">Steinzeit-Dorf</div>
+    <div id="v-status" style="font-size:12px;color:#aaa;margin-top:4px">0/4 Gebäude fertig</div>
+  </div>
+  <div id="buildings"></div>
+  <button id="upgrade-btn" onclick="upgradeVillage()">🏘️ Nächstes Dorf freischalten</button>
+</div>
+
+<!-- SHOP PAGE -->
+<div id="page-shop" class="page">
+  <div style="font-size:13px;color:#888;margin-bottom:12px;text-align:center">Kaufe Drehs mit Münzen</div>
+  <div class="shop-item">
+    <div><span style="font-size:28px">🎰</span> <strong>10 Drehs</strong><br><span style="font-size:12px;color:#888">🪙 200 Münzen</span></div>
+    <button class="shop-buy" onclick="buySpins(10,200)">KAUFEN</button>
+  </div>
+  <div class="shop-item">
+    <div><span style="font-size:28px">💫</span> <strong>50 Drehs</strong><br><span style="font-size:12px;color:#888">🪙 800 Münzen</span></div>
+    <button class="shop-buy" onclick="buySpins(50,800)">KAUFEN</button>
+  </div>
+  <div class="shop-item">
+    <div><span style="font-size:28px">⚡</span> <strong>100 Drehs</strong><br><span style="font-size:12px;color:#888">🪙 1400 Münzen</span></div>
+    <button class="shop-buy" onclick="buySpins(100,1400)">KAUFEN</button>
+  </div>
+  <div class="shop-item">
+    <div><span style="font-size:28px">🌟</span> <strong>500 Drehs</strong><br><span style="font-size:12px;color:#888">🪙 5000 Münzen</span></div>
+    <button class="shop-buy" onclick="buySpins(500,5000)">KAUFEN</button>
+  </div>
+  <div id="free-spin-box">
+    <div style="font-size:24px;margin-bottom:6px">⏱️</div>
+    <div style="font-weight:700;margin-bottom:4px">Gratis Drehs</div>
+    <div style="font-size:12px;color:#aaa">Alle 60 Sekunden automatisch +5 Drehs</div>
+  </div>
+</div>
+
+<!-- POPUP -->
+<div id="popup">
+  <div id="popup-box">
+    <div id="popup-title"></div>
+    <div id="popup-sub"></div>
+    <div id="popup-name"></div>
+    <div id="popup-content"></div>
+  </div>
+</div>
+
+<script>
+var coins = 500, spins = 50, shields = 0, level = 1, xp = 0;
+var villageLevel = 0;
+var buildings = [0,0,0,0];
+var spinning = false;
+
+var SYMBOLS = ["🪙","⚔️","🛡️","💎","🔔","🌟","💣","🏆"];
+var WEIGHTS = [30,15,15,10,15,5,5,5];
+var VILLAGES = [
+  {name:"Steinzeit-Dorf", icon:"🏘️", cost:0},
+  {name:"Piraten-Insel", icon:"🏴‍☠️", cost:1500},
+  {name:"Drachen-Festung", icon:"🏰", cost:4000},
+  {name:"Eis-Königreich", icon:"❄️", cost:9000},
+  {name:"Wolken-Stadt", icon:"☁️", cost:20000},
+];
+var BUILDINGS = [
+  {name:"Hütte", icon:"🏚️", cost:100},
+  {name:"Markt", icon:"🏪", cost:200},
+  {name:"Turm", icon:"🗼", cost:350},
+  {name:"Burg", icon:"🏰", cost:500},
+];
+var ENEMIES = ["Viking Björn 🪓","Piratin Rosa 🏴‍☠️","Ritter Max ⚔️","Zauberin Luna 🔮","König Thorin 👑"];
+
+function rndSym(){
+  var total=WEIGHTS.reduce(function(a,b){return a+b},0), r=Math.random()*total;
+  for(var i=0;i<SYMBOLS.length;i++){r-=WEIGHTS[i];if(r<=0)return SYMBOLS[i];}
+  return SYMBOLS[0];
+}
+
+function updateUI(){
+  document.getElementById('coins-display').textContent = '🪙 ' + coins.toLocaleString();
+  document.getElementById('spins-display').textContent = '🎰 ' + spins + ' Drehs';
+  document.getElementById('level-display').textContent = 'LEVEL ' + level;
+  document.getElementById('shields-display').textContent = Array(shields+1).join('🛡️');
+  document.getElementById('spin-btn').textContent = spinning ? '⏳ DREHT...' : '🎰 DREHEN (' + spins + ' Drehs)';
+}
+
+function setMsg(txt){ document.getElementById('msg').textContent = txt; }
+
+function showTab(t){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active')});
+  document.getElementById('page-'+t).classList.add('active');
+  event.target.classList.add('active');
+  if(t==='village') renderVillage();
+}
+
+function spin(){
+  if(spinning||spins<1){if(spins<1)setMsg('❌ Keine Drehs übrig!'); return;}
+  spinning=true; spins--;
+  document.getElementById('spin-btn').disabled=true;
+  updateUI();
+
+  var ids=['r0','r1','r2'];
+  ids.forEach(function(id){document.getElementById(id).classList.add('spin')});
+
+  var res=[rndSym(),rndSym(),rndSym()];
+  var tick=0;
+  var iv=setInterval(function(){
+    tick++;
+    if(tick<15) document.getElementById('r0').textContent=rndSym();
+    if(tick<20) document.getElementById('r1').textContent=rndSym();
+    if(tick<25) document.getElementById('r2').textContent=rndSym();
+    if(tick>=25){
+      clearInterval(iv);
+      ids.forEach(function(id){document.getElementById(id).classList.remove('spin')});
+      document.getElementById('r0').textContent=res[0];
+      document.getElementById('r1').textContent=res[1];
+      document.getElementById('r2').textContent=res[2];
+      spinning=false;
+      document.getElementById('spin-btn').disabled=false;
+      applyReward(res);
+      xp+=10; checkLevel();
+      updateUI();
+    }
+  },60);
+}
+
+function applyReward(res){
+  var counts={};
+  res.forEach(function(s){counts[s]=(counts[s]||0)+1});
+  var best=null,bestN=0;
+  for(var s in counts){if(counts[s]>bestN){best=s;bestN=counts[s]}}
+
+  if(bestN===3){
+    if(best==='🪙'){coins+=500;setMsg('💰 JACKPOT! +500 Münzen!')}
+    else if(best==='💎'){coins+=1000;setMsg('💎 DIAMANT! +1000 Münzen!')}
+    else if(best==='🌟'){coins+=2000;setMsg('🌟 MEGA WIN! +2000 Münzen!')}
+    else if(best==='🏆'){coins+=5000;setMsg('🏆 ULTRA WIN! +5000 Münzen!')}
+    else if(best==='🔔'){coins+=300;setMsg('🔔 BONUS! +300 Münzen!')}
+    else if(best==='⚔️'){showAttack()}
+    else if(best==='🛡️'){shields=Math.min(shields+1,3);setMsg('🛡️ SCHILD aktiviert!')}
+    else if(best==='💣'){showRaid()}
+  } else if(bestN===2){
+    if(best==='🪙'){coins+=100;setMsg('🪙 +100 Münzen!')}
+    else if(best==='💎'){coins+=250;setMsg('💎 +250 Münzen!')}
+    else if(best==='🌟'){coins+=400;setMsg('🌟 +400 Münzen!')}
+    else { setMsg('😞 Kein Gewinn...') }
+  } else { setMsg('😞 Kein Gewinn...') }
+}
+
+function showAttack(){
+  var enemy=ENEMIES[Math.floor(Math.random()*ENEMIES.length)];
+  setMsg('⚔️ Angriff möglich!');
+  document.getElementById('popup-title').textContent='⚔️';
+  document.getElementById('popup-sub').textContent='ANGRIFF AUF';
+  document.getElementById('popup-name').textContent=enemy;
+  document.getElementById('popup-content').innerHTML='<button id="popup-btn" onclick="doAttack(\''+enemy+'\')">⚔️ ANGREIFEN!</button>';
+  document.getElementById('popup').classList.add('show');
+}
+
+function doAttack(enemy){
+  var stolen=Math.floor(100+Math.random()*400);
+  coins+=stolen;
+  setMsg('⚔️ '+enemy+' besiegt! +'+stolen+' Münzen gestohlen!');
+  document.getElementById('popup').classList.remove('show');
+  updateUI();
+}
+
+function showRaid(){
+  var enemy=ENEMIES[Math.floor(Math.random()*ENEMIES.length)];
+  setMsg('💣 Raid! Wähle ein Feld!');
+  document.getElementById('popup-title').textContent='💣';
+  document.getElementById('popup-sub').textContent='RAID BEI';
+  document.getElementById('popup-name').textContent=enemy;
+  document.getElementById('popup-content').innerHTML='<div id="raid-tiles"><button class="tile" onclick="doRaid(this,0)">❓</button><button class="tile" onclick="doRaid(this,1)">❓</button><button class="tile" onclick="doRaid(this,2)">❓</button></div>';
+  window._raidLeft=3;
+  document.getElementById('popup').classList.add('show');
+}
+
+function doRaid(btn,idx){
+  btn.disabled=true;
+  var found=Math.random()>0.4;
+  var amount=found?Math.floor(200+Math.random()*800):0;
+  btn.textContent=found?'🪙\n'+amount:'💨';
+  if(found){coins+=amount;setMsg('💰 Gefunden! +'+amount+' Münzen!')}
+  else{setMsg('💨 Leer...')}
+  window._raidLeft--;
+  if(window._raidLeft<=0)setTimeout(function(){document.getElementById('popup').classList.remove('show');updateUI();},1500);
+  updateUI();
+}
+
+function checkLevel(){
+  if(xp>=level*100){level++;spins+=20;setMsg('🎉 Level '+level+' erreicht! +20 Drehs!');}
+}
+
+// VILLAGE
+function renderVillage(){
+  var v=VILLAGES[villageLevel];
+  document.getElementById('v-icon').textContent=v.icon;
+  document.getElementById('v-name').textContent=v.name;
+  document.getElementById('village-name').textContent=v.name;
+  document.getElementById('village-num').textContent=villageLevel+1;
+
+  var done=buildings.filter(function(b){return b>=4}).length;
+  document.getElementById('v-status').textContent=done+'/4 Gebäude fertig';
+
+  var html='';
+  BUILDINGS.forEach(function(b,i){
+    var lv=buildings[i];
+    var stars='';
+    for(var j=0;j<4;j++) stars+='<div class="star'+(j<lv?' on':'')+'"></div>';
+    var isDone=lv>=4;
+    html+='<div class="building'+(isDone?' done':'')+'"><div class="building-icon">'+b.icon+'</div><div class="building-name">'+b.name+'</div><div class="stars">'+stars+'</div>';
+    if(isDone) html+='<div style="color:#00ff88;font-weight:700;font-size:13px">✅ Fertig!</div>';
+    else html+='<button class="buy-btn" '+(coins<b.cost?'disabled':'')+' onclick="buyBuilding('+i+')">🪙 '+b.cost+'</button>';
+    html+='</div>';
+  });
+  document.getElementById('buildings').innerHTML=html;
+
+  var allDone=buildings.every(function(b){return b>=4});
+  var btn=document.getElementById('upgrade-btn');
+  if(villageLevel>=VILLAGES.length-1){
+    btn.textContent='🏆 Alle Dörfer freigeschaltet!';
+    btn.className='upgrade-btn';
+    return;
+  }
+  var next=VILLAGES[villageLevel+1];
+  btn.textContent='🏘️ '+next.name+' freischalten (🪙 '+next.cost.toLocaleString()+')';
+  btn.className='upgrade-btn'+(allDone?' ready':'');
+}
+
+function buyBuilding(idx){
+  var b=BUILDINGS[idx];
+  if(buildings[idx]>=4){return;}
+  if(coins<b.cost){setMsg('❌ Nicht genug Münzen!');return;}
+  coins-=b.cost; buildings[idx]++; xp+=30;
+  setMsg('✅ '+b.name+' ausgebaut!');
+  checkLevel(); updateUI(); renderVillage();
+}
+
+function upgradeVillage(){
+  if(villageLevel>=VILLAGES.length-1) return;
+  var allDone=buildings.every(function(b){return b>=4});
+  if(!allDone){setMsg('⚠️ Erst alle Gebäude auf Stufe 4 bringen!');return;}
+  var next=VILLAGES[villageLevel+1];
+  if(coins<next.cost){setMsg('❌ Nicht genug Münzen! Benötigt: 🪙 '+next.cost);return;}
+  coins-=next.cost; villageLevel++; buildings=[0,0,0,0]; xp+=100;
+  setMsg('🎉 Willkommen in: '+VILLAGES[villageLevel].name+'!');
+  checkLevel(); updateUI(); renderVillage();
+}
+
+// SHOP
+function buySpins(amount, cost){
+  if(coins<cost){setMsg('❌ Nicht genug Münzen!');return;}
+  coins-=cost; spins+=amount;
+  setMsg('✅ +'+amount+' Drehs erhalten!');
+  updateUI();
+}
+
+// Free spins every 60s
+setInterval(function(){
+  spins+=5; setMsg('🎁 +5 Gratis-Drehs erhalten!'); updateUI();
+}, 60000);
+
+updateUI();
+</script>
+</body>
+</html>
