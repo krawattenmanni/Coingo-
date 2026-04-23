@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Monopoly Go Professional</title>
+<style>
+:root {
+  --gold: #FFD700; --m-green: #27AE60; --m-red: #E74C3C; --m-blue: #2980B9;
+  --board-bg: #e8f5e9;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Arial Rounded MT Bold', sans-serif; }
+body { background: radial-gradient(circle, #1e3c72, #2a5298); color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+/* HUD */
+#hud { position: fixed; top: 10px; width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 100; }
+.stat { background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 30px; border: 2px solid var(--gold); font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 8px; }
+
+/* 3D Szene */
+#view { perspective: 1200px; flex: 1; display: flex; justify-content: center; align-items: center; margin-top: 50px; }
+#board-container { 
+    width: 380px; height: 380px; 
+    transform: rotateX(50deg) rotateZ(-20deg); 
+    transform-style: preserve-3d; 
+    position: relative;
+}
+.board { 
+    display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); 
+    width: 100%; height: 100%; background: var(--board-bg); border: 8px solid #2c3e50;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+}
+
+/* Felder & Icons */
+.cell { border: 1px solid rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #fff; color: #333; }
+.color-bar { position: absolute; top: 0; width: 100%; height: 20%; border-bottom: 1px solid rgba(0,0,0,0.2); }
+.cell-icon { width: 70%; height: 50%; margin-top: 15%; }
+
+/* Gebäude */
+.house, .hotel { position: absolute; bottom: 5px; transform: translateZ(15px); }
+
+/* Spielfigur */
+#player { 
+    width: 26px; height: 26px; background: radial-gradient(circle at 30% 30%, #ff4b2b, #ff416c); 
+    border-radius: 50%; position: absolute; z-index: 50; 
+    transform: translateZ(25px); box-shadow: 0 15px 15px rgba(0,0,0,0.6);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Würfel UI */
+#ui { position: fixed; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+.dice-preview { display: flex; gap: 10px; margin-bottom: 10px; }
+.dice-img { width: 50px; height: 50px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3)); }
+.go-btn { 
+    width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(#f1c40f, #f39c12); 
+    border: none; border-bottom: 8px solid #a47c00; font-weight: bold; font-size: 22px; color: white;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+}
+
+/* Nachrichten */
+#msg-box { position: fixed; top: 120px; width: 100%; text-align: center; pointer-events: none; z-index: 1000; }
+.msg { background: white; color: #333; padding: 12px 25px; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: inline-block; transform: scale(0); transition: 0.4s; }
+.msg.show { transform: scale(1); }
+
+@keyframes jump { 0%, 100% { transform: translateZ(25px); } 50% { transform: translateZ(70px) scale(1.3); } }
+.jumping { animation: jump 0.3s ease-in-out; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+    <div class="stat">💰 <b id="money">1500</b></div>
+    <div class="stat">🎲 <b id="dice">50</b></div>
+</div>
+
+<div id="msg-box"><div id="msg" class="msg">LOS GEHT'S!</div></div>
+
+<div id="view">
+    <div id="board-container">
+        <div id="player"></div>
+        <div class="board" id="board"></div>
+    </div>
+</div>
+
+<div id="ui">
+    <div class="dice-preview" id="dice-display"></div>
+    <button class="go-btn" onclick="playTurn()">GO!</button>
+</div>
+
+<script>
+// --- GRAFIK ASSETS (SVG CODES) ---
+const ICONS = {
+    go: `<svg viewBox="0 0 100 100"><path d="M10,50 L90,50 M60,20 L90,50 L60,80" stroke="#27AE60" stroke-width="15" fill="none"/></svg>`,
+    jail: `<svg viewBox="0 0 100 100"><rect x="20" y="10" width="10" height="80" fill="#333"/><rect x="45" y="10" width="10" height="80" fill="#333"/><rect x="70" y="10" width="10" height="80" fill="#333"/></svg>`,
+    chance: `<svg viewBox="0 0 100 100"><text x="50" y="75" font-size="70" text-anchor="middle" fill="#E67E22" font-weight="bold">?</text></svg>`,
+    chest: `<svg viewBox="0 0 100 100"><rect x="10" y="30" width="80" height="50" rx="5" fill="#8B4513"/><path d="M10,50 H90" stroke="#DAA520" stroke-width="5"/></svg>`,
+    train: `<svg viewBox="0 0 100 100"><rect x="20" y="40" width="60" height="30" fill="#333"/><circle cx="35" y="75" r="10" fill="#000"/><circle cx="65" y="75" r="10" fill="#000"/></svg>`,
+    house: `<svg width="20" height="20" viewBox="0 0 100 100"><path d="M10,90 V40 L50,10 L90,40 V90 Z" fill="#27AE60" stroke="#145a32" stroke-width="5"/></svg>`,
+    hotel: `<svg width="25" height="25" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" fill="#E74C3C" stroke="#7b241c" stroke-width="5"/><rect x="30" y="30" width="10" height="10" fill="white"/></svg>`,
+    dice: [
+        null, // Index 0 leer
+        `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="15" fill="white"/><circle cx="50" cy="50" r="12" fill="red"/></svg>`,
+        `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="15" fill="white"/><circle cx="25" cy="25" r="10" fill="black"/><circle cx="75" cy="75" r="10" fill="black"/></svg>`,
+        `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="15" fill="white"/><circle cx="25" cy="25" r="10" fill="black"/><circle cx="50" cy="50" r="10" fill="black"/><circle cx="75" cy="75" r="10" fill="black"/></svg>`,
+        `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="15" fill="white"/><circle cx="25" cy="25" r="10" fill="black"/><circle cx="75" cy="25" r="10" fill="black"/><circle cx="25" cy="75" r="10" fill="black"/><circle cx="75" cy="75" r="10" fill="black"/></svg>`,
+        `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="15" fill="white"/><circle cx="25" cy="25" r="10" fill="black"/><circle cx="75" cy="25" r="10" fill="black"/><circle cx="50" cy="50" r="10" fill="black"/><circle cx="25" cy="75" r="10" fill="black"/><circle cx="75" cy="75" r="10" fill="black"/></svg>`,
+        `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="15" fill="white"/><circle cx="25" cy="20" r="10" fill="black"/><circle cx="25" cy="50" r="10" fill="black"/><circle cx="25" cy="80" r="10" fill="black"/><circle cx="75" cy="20" r="10" fill="black"/><circle cx="75" cy="50" r="10" fill="black"/><circle cx="75" cy="80" r="10" fill="black"/></svg>`
+    ]
+};
+
+let G = { pos: 0, money: 1500, dice: 50 };
+const boardEl = document.getElementById('board');
+const path = [];
+
+function initBoard() {
+    let borderCells = [];
+    for(let i=120; i>=110; i--) borderCells.push(i); 
+    for(let i=99; i>=0; i-=11) borderCells.push(i); 
+    for(let i=1; i<=10; i++) borderCells.push(i); 
+    for(let i=21; i<=109; i+=11) borderCells.push(i); 
+
+    for(let i=0; i<121; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        if(!borderCells.includes(i)) {
+            cell.style.visibility = 'hidden';
+        } else {
+            if([119, 117].includes(i)) addDeco(cell, '#955436', 'Str.');
+            if([109, 87, 76].includes(i)) addDeco(cell, '#87ceeb', 'Str.');
+            if([1, 3, 5].includes(i)) addDeco(cell, '#ffa500', 'Str.');
+            if([7, 8, 9].includes(i)) addDeco(cell, '#ff0000', 'Str.');
+            
+            if(i===120) cell.innerHTML = `<div class="cell-icon">${ICONS.go}</div>`;
+            if(i===110) cell.innerHTML = `<div class="cell-icon">${ICONS.jail}</div>`;
+            if([115, 6, 54].includes(i)) cell.innerHTML = `<div class="cell-icon">${ICONS.chance}</div>`;
+            if([113, 2].includes(i)) cell.innerHTML = `<div class="cell-icon">${ICONS.chest}</div>`;
+            if([66, 11, 4, 65].includes(i)) cell.innerHTML = `<div class="cell-icon">${ICONS.train}</div>`;
+        }
+        cell.id = 'c' + i;
+        boardEl.appendChild(cell);
+    }
+    return borderCells;
+}
+
+function addDeco(el, color, name) {
+    let bar = document.createElement('div');
+    bar.className = 'color-bar';
+    bar.style.background = color;
+    el.appendChild(bar);
+}
+
+const pfadIds = initBoard();
+
+function updateUI() {
+    document.getElementById('money').innerText = G.money;
+    document.getElementById('dice').innerText = G.dice;
+}
+
+function showMsg(txt) {
+    const m = document.getElementById('msg');
+    m.innerText = txt;
+    m.classList.add('show');
+    setTimeout(() => m.classList.remove('show'), 1500);
+}
+
+function movePlayer() {
+    const cellId = pfadIds[G.pos % pfadIds.length];
+    const cell = document.getElementById('c' + cellId);
+    const p = document.getElementById('player');
+    p.style.left = cell.offsetLeft + (cell.offsetWidth/2 - 13) + "px";
+    p.style.top = cell.offsetTop + (cell.offsetHeight/2 - 13) + "px";
+}
+
+async function playTurn() {
+    if(G.dice <= 0) return showMsg("Keine Würfel!");
+    G.dice--;
+    updateUI();
+
+    let roll = Math.floor(Math.random() * 6) + 1;
+    document.getElementById('dice-display').innerHTML = `<div class="dice-img">${ICONS.dice[roll]}</div>`;
+    
+    for(let i=0; i<roll; i++) {
+        G.pos++;
+        movePlayer();
+        document.getElementById('player').classList.add('jumping');
+        await new Promise(r => setTimeout(r, 250));
+        document.getElementById('player').classList.remove('jumping');
+    }
+    handleLand();
+}
+
+function handleLand() {
+    let landIdx = G.pos % pfadIds.length;
+    let cellId = pfadIds[landIdx];
+    let cell = document.getElementById('c' + cellId);
+
+    if(cell.querySelector('.color-bar')) {
+        let h = document.createElement('div');
+        h.className = Math.random() > 0.8 ? 'hotel' : 'house';
+        h.innerHTML = h.className === 'hotel' ? ICONS.hotel : ICONS.house;
+        cell.appendChild(h);
+        G.money += 100;
+        showMsg("HAUS GEBAUT! +100💰");
+    } else {
+        G.money += 50;
+        showMsg("BONUS +50💰");
+    }
+    updateUI();
+}
+
+movePlayer();
+</script>
+</body>
+</html>
