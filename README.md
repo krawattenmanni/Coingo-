@@ -1,1 +1,1 @@
-# Coingo-
+# Coin and Go!
